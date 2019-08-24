@@ -2,6 +2,14 @@
 const fs = require('fs');
 require('shelljs/global');
 
+let skipAgent = false;
+
+if (process.argv.length >= 3) {
+  let extraArg = process.argv[2];
+
+  skipAgent = (extraArg == '--skip-agent');
+}
+
 config.fatal = true;
 config.verbose = true;
 
@@ -21,8 +29,10 @@ rm('-rf', releaseDir, releaseFile, deviceSourceFirmwares, moduleSourceFirmwares)
 exec(`cd ${__dirname}/../left; make clean; make -j8`);
 exec(`cd ${__dirname}/../right; make clean; make -j8`);
 
-exec(`git pull origin master; git checkout master`, { cwd: agentDir });
-exec(`npm ci`, { cwd: agentDir });
+if (!skipAgent) {
+  exec(`git pull origin master; git checkout master`, { cwd: agentDir });
+  exec(`npm ci`, { cwd: agentDir });
+}
 
 for (const device of package.devices) {
     const deviceDir = `${releaseDir}/devices/${device.name}`;
