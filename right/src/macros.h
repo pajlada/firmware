@@ -6,6 +6,7 @@
     #include <stdint.h>
     #include <stdbool.h>
     #include "key_action.h"
+    #include "key_states.h"
     #include "usb_device_config.h"
 
 // Macros:
@@ -15,6 +16,8 @@
 // Typedefs:
 
     typedef struct {
+        char *name;
+        uint16_t nameLen;
         uint16_t firstMacroActionOffset;
         uint16_t macroActionsCount;
     } macro_reference_t;
@@ -74,6 +77,7 @@
     extern usb_basic_keyboard_report_t MacroBasicKeyboardReport;
     extern usb_media_keyboard_report_t MacroMediaKeyboardReport;
     extern usb_system_keyboard_report_t MacroSystemKeyboardReport;
+    extern key_state_t *MacroKeyPress;
 
 // Functions:
 

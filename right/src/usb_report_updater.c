@@ -309,6 +309,7 @@ static void applyKeyAction(key_state_t *keyState, key_action_t *action, uint8_t 
             case KeyActionType_PlayMacro:
                 if (!keyState->previous) {
                     stickyModifiers = 0;
+                    MacroKeyPress = keyState;
                     Macros_StartMacro(action->playMacro.macroId);
                 }
                 break;

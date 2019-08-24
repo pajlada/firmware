@@ -1,7 +1,9 @@
 #include "macros.h"
+#include "key_states.h"
 #include "config_parser/parse_macro.h"
 #include "config_parser/config_globals.h"
 #include "timer.h"
+#include <string.h>
 
 macro_reference_t AllMacros[MAX_MACRO_NUM];
 uint8_t AllMacrosCount;
@@ -10,10 +12,14 @@ usb_mouse_report_t MacroMouseReport;
 usb_basic_keyboard_report_t MacroBasicKeyboardReport;
 usb_media_keyboard_report_t MacroMediaKeyboardReport;
 usb_system_keyboard_report_t MacroSystemKeyboardReport;
+key_state_t *MacroKeyPress = NULL;
 
 static uint8_t currentMacroIndex;
 static uint16_t currentMacroActionIndex;
 static macro_action_t currentMacroAction;
+static bool loopOnHold = false;
+static bool loopOnToggle = false;
+static uint8_t toggleState = 0;
 
 uint8_t characterToScancode(char character)
 {
@@ -355,6 +361,37 @@ bool processTextAction(void)
     char character;
     uint8_t scancode;
 
+    // TODO: These key state checks should probably happen outside of the text parser
+    key_state_t *capsKeyState = &KeyStates[SlotId_LeftKeyboardHalf][14];
+
+    if (capsKeyState->current) {
+        MacroPlaying = false;
+        textIndex = 0;
+        return false;
+    }
+
+    if (MacroKeyPress != NULL) {
+        if (loopOnHold) {
+            if (!MacroKeyPress->current) {
+                textIndex = 0;
+                // BREAK
+                MacroPlaying = false;
+                return false;
+            }
+        }
+
+        if (loopOnToggle) {
+            if (toggleState == 0 && !MacroKeyPress->current) {
+                toggleState = 1;
+            } else if (toggleState == 1 && MacroKeyPress->current) {
+                // BREAK
+                MacroPlaying = false;
+                textIndex = 0;
+                return false;
+            }
+        }
+    }
+
     if (textIndex == currentMacroAction.text.textLen) {
         textIndex = 0;
         reportIndex = USB_BASIC_KEYBOARD_MAX_KEYS;
@@ -404,6 +441,9 @@ void Macros_StartMacro(uint8_t index)
     if(AllMacros[index].macroActionsCount == 0) {
         return;
     }
+    loopOnHold = false;
+    loopOnToggle = false;
+    toggleState = 0;
     MacroPlaying = true;
     currentMacroIndex = index;
     currentMacroActionIndex = 0;
@@ -413,6 +453,12 @@ void Macros_StartMacro(uint8_t index)
     memset(&MacroBasicKeyboardReport, 0, sizeof MacroBasicKeyboardReport);
     memset(&MacroMediaKeyboardReport, 0, sizeof MacroMediaKeyboardReport);
     memset(&MacroSystemKeyboardReport, 0, sizeof MacroSystemKeyboardReport);
+
+    if (strncmp(AllMacros[index].name, "loh:", 4) == 0) {
+        loopOnHold = true;
+    } else if (strncmp(AllMacros[index].name, "lot:", 4) == 0) {
+        loopOnToggle = true;
+    }
 }
 
 void Macros_ContinueMacro(void)
@@ -421,6 +467,14 @@ void Macros_ContinueMacro(void)
         return;
     }
     if (++currentMacroActionIndex == AllMacros[currentMacroIndex].macroActionsCount) {
+        bool loop = (MacroPlaying && (loopOnHold || loopOnToggle));
+        if (loop) {
+            uint8_t oldToggleState = toggleState;
+            Macros_StartMacro(currentMacroIndex);
+            toggleState = oldToggleState;
+            return;
+        }
+
         MacroPlaying = false;
         return;
     }

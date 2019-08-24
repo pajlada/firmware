@@ -1,6 +1,8 @@
 #include "parse_macro.h"
 #include "config_globals.h"
 #include "macros.h"
+#include <string.h>
+#include <stdlib.h>
 
 parser_error_t parseKeyMacroAction(config_buffer_t *buffer, macro_action_t *macroAction, serialized_macro_action_type_t macroActionType)
 {
@@ -112,8 +114,13 @@ parser_error_t ParseMacro(config_buffer_t *buffer, uint8_t macroIdx)
 
     (void)isLooped;
     (void)isPrivate;
-    (void)name;
     if (!ParserRunDry) {
+        if (AllMacros[macroIdx].name == NULL) {
+            AllMacros[macroIdx].name = malloc(255);
+        }
+        memset(AllMacros[macroIdx].name, 0, 255);
+        strcpy(AllMacros[macroIdx].name, name);
+
         AllMacros[macroIdx].firstMacroActionOffset = firstMacroActionOffset;
         AllMacros[macroIdx].macroActionsCount = macroActionsCount;
     }
